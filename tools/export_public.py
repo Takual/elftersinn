@@ -129,6 +129,7 @@ def main(src):
                 "points": ss.get("kicktipp_points"),
                 "leader_points": ss.get("kicktipp_leader_points"),
                 "as_of_matchday": ss.get("kicktipp_as_of_matchday"),
+                "as_of_date": ss.get("kicktipp_as_of_date"),
             },
         },
         "current": {

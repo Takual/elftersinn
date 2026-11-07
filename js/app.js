@@ -100,7 +100,7 @@
     return h('section', { class: 'kpis', 'aria-label': 'Saisonbilanz' },
       kpi(I.bars, '#22E3A2', pct(s.tendency_accuracy_pct), 'Tendenztreffer (diese Saison)'),
       kpi(I.cup, '#E9C24A', k.rank != null ? 'Platz ' + k.rank : '–',
-        'in unserem Kicktipp' + (k.as_of_matchday ? ' (Stand Spieltag ' + k.as_of_matchday + ')' : '')),
+        'in unserem Kicktipp' + (k.as_of_date ? ' (Stand ' + dayLabel(k.as_of_date).slice(4) + ')' : k.as_of_matchday ? ' (Stand Spieltag ' + k.as_of_matchday + ')' : '')),
       kpi((roiAll != null ? roiAll : roiLive) < 0 ? I.trend : I.trendUp, (roiAll != null ? roiAll : roiLive) < 0 ? '#FF9A62' : '#22E3A2',
         pct(roiAll != null ? roiAll : roiLive), 'Virtuelle Rendite (5 € pro Tipp)', sign(roiAll != null ? roiAll : roiLive)),
       kpi(I.ball, '#22E3A2', num(s.matches_analyzed), 'Spiele analysiert')
@@ -256,7 +256,7 @@
       return '<line x1="38" y1="' + y(v) + '" x2="330" y2="' + y(v) + '" stroke="#1B2E29"/><text x="30" y="' + (y(v) + 4) + '" text-anchor="end" fill="#8DA59E" font-size="11">' + v + ' %</text>';
     }).join('');
     var label = defs.map(function (d) { var s = seg[d[0]]; return s ? d[1] + ': ' + num(s.accuracy_pct, 1) + ' Prozent' : ''; }).join(', ');
-    var chart = svg('<svg viewBox="0 0 340 210" role="img" aria-label="Trefferquote nach Marktwahrscheinlichkeit des Favoriten: ' + label +
+    var chart = svg('<svg viewBox="-12 0 352 210" role="img" aria-label="Trefferquote nach Marktwahrscheinlichkeit des Favoriten: ' + label +
       '" style="width:100%;height:auto;display:block;font-family:Inter,sans-serif">' + grid + parts + '</svg>');
     return h('div', { class: 'panel', id: 'markt', style: 'display:flex;flex-direction:column;gap:12px' },
       h('div', { class: 'panel-title' }, icon(I.target),
