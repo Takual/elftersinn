@@ -1,0 +1,15 @@
+{
+  "name": "ELFTER SINN – Fußball. Daten. Perspektiven.",
+  "short_name": "ELFTER SINN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#06100E",
+  "theme_color": "#06100E",
+  "lang": "de",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
