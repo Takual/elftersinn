@@ -100,7 +100,7 @@
     return h('section', { class: 'kpis', 'aria-label': 'Saisonbilanz' },
       kpi(I.bars, '#22E3A2', pct(s.tendency_accuracy_pct), 'Tendenztreffer (diese Saison)'),
       kpi(I.cup, '#E9C24A', k.rank != null ? 'Platz ' + k.rank : '–',
-        'in unserem Kicktipp' + (k.as_of_date ? ' (Stand ' + dayLabel(k.as_of_date).slice(4) + ')' : k.as_of_matchday ? ' (Stand Spieltag ' + k.as_of_matchday + ')' : '')),
+        'in unserem Kicktipp' + (k.gap_to_leader != null ? (k.gap_to_leader === 0 ? ', punktgleich mit Platz 1' : ', ' + k.gap_to_leader + ' Pkt. hinter Platz 1') : '') + (k.as_of_date ? ' (Stand ' + dayLabel(k.as_of_date).slice(4) + ')' : k.as_of_matchday ? ' (Stand Spieltag ' + k.as_of_matchday + ')' : '')),
       kpi((roiAll != null ? roiAll : roiLive) < 0 ? I.trend : I.trendUp, (roiAll != null ? roiAll : roiLive) < 0 ? '#FF9A62' : '#22E3A2',
         pct(roiAll != null ? roiAll : roiLive), 'Virtuelle Rendite (5 € pro Tipp)', sign(roiAll != null ? roiAll : roiLive)),
       kpi(I.ball, '#22E3A2', num(s.matches_analyzed), 'Spiele analysiert')

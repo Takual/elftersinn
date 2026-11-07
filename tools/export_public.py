@@ -128,6 +128,7 @@ def main(src):
                 "rank": ss.get("kicktipp_rank"),
                 "points": ss.get("kicktipp_points"),
                 "leader_points": ss.get("kicktipp_leader_points"),
+                "gap_to_leader": ss.get("kicktipp_gap_to_leader"),
                 "as_of_matchday": ss.get("kicktipp_as_of_matchday"),
                 "as_of_date": ss.get("kicktipp_as_of_date"),
             },
