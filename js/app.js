@@ -279,17 +279,19 @@
 
   function renderBilanz(a) {
     var s = a.summary, pm = s.per_matchday || [];
-    var max = Math.max.apply(null, pm.map(function (d) { return Math.abs(d.profit_loss_eur || 0); }).concat([1]));
+    var max = Math.max.apply(null, pm.map(function (d) { var ib0 = d.incl_backfill; return Math.abs(((ib0 && ib0.backfilled_bets > 0) ? ib0.profit_loss_eur : d.profit_loss_eur) || 0); }).concat([1]));
     var bars = h('div', { class: 'bars', style: 'grid-template-columns:repeat(' + Math.max(pm.length, 1) + ',minmax(0,1fr))' });
     pm.forEach(function (d) {
-      var v = d.profit_loss_eur || 0, px = Math.round(Math.abs(v) / max * 60) + 'px';
-      bars.appendChild(h('div', { class: 'bar', title: 'Spieltag ' + d.matchday + ': ' + eur(v) + ' (Einsatz ' + num(d.stake_eur) + ' €)' },
+      var ib0 = d.incl_backfill, bf = ib0 && ib0.backfilled_bets > 0;
+      var v = (bf ? ib0.profit_loss_eur : d.profit_loss_eur) || 0, px = Math.round(Math.abs(v) / max * 60) + 'px';
+      bars.appendChild(h('div', { class: 'bar' + (bf ? ' bf' : ''), title: 'Spieltag ' + d.matchday + ': ' + eur(v) + ' (Einsatz ' + num(bf ? ib0.stake_eur : d.stake_eur) + ' €' +
+          (bf ? ', davon ' + ib0.backfilled_bets + ' mit nachgetragener Schlussquote; nur Live-Quoten: ' + eur(d.profit_loss_eur) : '') + ')' },
         h('span', { class: 'lbl' }, v > 0 ? eur(v) : ''),
         h('div', { class: 'half up' }, h('span', { style: 'height:' + (v > 0 ? px : '0') })),
         h('div', { class: 'axis' }),
         h('div', { class: 'half down' }, h('span', { style: 'height:' + (v < 0 ? px : '0') })),
         h('span', { class: 'lbl' }, v < 0 ? eur(v) : ''),
-        h('span', { class: 'md' }, 'ST ' + d.matchday)));
+        h('span', { class: 'md' }, 'ST ' + d.matchday + (bf ? '*' : ''))));
     });
     var ib = s.incl_backfill || {};
     return h('section', { class: 'panel bilanz', id: 'bilanz' },
@@ -298,6 +300,7 @@
         h('p', null, '5 € auf jede getippte Tendenz, Quote 60–90 Minuten vor Anpfiff.'),
         h('p', null, 'Nur Live-Quoten: ', h('b', { class: sign(s.profit_loss) }, eur(s.profit_loss)), ' bei ' + num(s.stake_total) + ' € Einsatz (ROI ' + pct(s.roi_pct) + ').'),
         ib.profit_loss_eur != null ? h('p', null, 'Inkl. ' + ib.backfilled_bets + ' nachgetragener Schlussquoten: ', h('b', { class: sign(ib.profit_loss_eur) }, eur(ib.profit_loss_eur)), ' (ROI ' + pct(ib.roi_pct) + ').') : null,
+        h('p', { class: 'note' }, '* Spieltag bzw. Spiel enthält nachgetragene Schlussquoten (Durchschnitt aller Buchmacher, football-data.co.uk), weil keine Live-Quote erfasst werden konnte.'),
         h('p', { class: 'note' }, 'Exakte Treffer: ' + num(s.exact_hits) + ' · Remis-Tipps: ' + num(s.draw_tips_hit) + ' von ' + num(s.draw_tips) + ' richtig · Risikotipps: ' +
           num((s.risk_tips || {}).tendency_hits) + ' von ' + num((s.risk_tips || {}).tips))),
       bars);
@@ -347,6 +350,7 @@
       var exact = ms.filter(function (m) { return m.result && m.result.exact_hit; }).length;
       var pl = ms.reduce(function (s, m) { return s + ((m.bet && m.bet.profit_loss) || 0); }, 0);
       var withBet = ms.some(function (m) { return m.bet && m.bet.profit_loss != null; });
+      var anyBf = ms.some(function (m) { return m.bet && m.bet.backfilled; });
       var tb = h('tbody');
       ms.forEach(function (m) {
         var r = m.result || {};
@@ -358,7 +362,8 @@
           h('td', { class: 'c' }, h('span', { class: 'tip' }, (m.tip && m.tip.score) || '–')),
           h('td', { class: 'c' }, h('span', { class: 'res' }, r.score || '–')),
           h('td', { class: 'r' }, r.score ? h('span', { class: 'hit ' + cls }, r.exact_hit ? 'exakt' : r.tendency_hit ? 'Tendenz' : 'daneben') : null),
-          h('td', { class: 'r ' + sign(m.bet && m.bet.profit_loss) }, m.bet && m.bet.profit_loss != null ? eur(m.bet.profit_loss) : '–')));
+          h('td', { class: 'r ' + sign(m.bet && m.bet.profit_loss), title: m.bet && m.bet.backfilled ? 'Nachgetragene Schlussquote ' + num(m.bet.odds, 2) + ' (keine Live-Quote)' : null },
+            m.bet && m.bet.profit_loss != null ? eur(m.bet.profit_loss) + (m.bet.backfilled ? '*' : '') : '–')));
         if (m.post_analysis && m.post_analysis.error_class) {
           tb.appendChild(h('tr', { class: 'detail' }, h('td', { colspan: '7' },
             h('p', { class: 'note', style: 'padding:0 4px 6px' }, 'Nachanalyse: ' + m.post_analysis.error_class + (m.post_analysis.note ? ' – ' + m.post_analysis.note : '')))));
@@ -367,7 +372,7 @@
       box.appendChild(h('details', null,
         h('summary', null, h('b', null, 'Spieltag ' + md.matchday),
           h('span', { class: 'sub' }, hits + '/' + ms.length + ' Tendenzen · ' + exact + ' exakt'),
-          withBet ? h('span', { class: sign(pl) }, eur(pl)) : null,
+          withBet ? h('span', { class: sign(pl) }, eur(pl) + (anyBf ? '*' : '')) : null,
           h('span', { class: 'chev', 'aria-hidden': 'true' }, '▾')),
         h('div', { class: 'inner' },
           h('div', { class: 'scroll' }, h('table', { class: 'matches' },

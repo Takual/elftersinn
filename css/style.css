@@ -189,6 +189,7 @@ table { width: 100%; border-collapse: collapse; }
 .bar .down span { display: block; width: 60%; max-width: 34px; background: var(--orange-bar); border-radius: 0 0 3px 3px; }
 .bar .axis { height: 1px; width: 100%; background: #3A5A51; }
 .bar .md { font-family: var(--f-cond); font-weight: 700; font-size: 14px; color: #9AB0A9; }
+.bar.bf .half span { opacity: .6; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.18) 0 3px, transparent 3px 6px); }
 
 /* Tabelle + Meldungen */
 .split { display: flex; flex-wrap: wrap; gap: 16px; }

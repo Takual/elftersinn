@@ -39,19 +39,39 @@ def market_public(m):
     }
 
 
-def bet_public(b, vb):
+def bet_public(b, vb, bf=None):
     b = b or {}
     vb = vb or {}
+    if vb.get("profit_loss_eur") is None and bf:
+        # Keine Live-Quote: nachgetragene Schlussquote (Abschnitt 3a), klar gekennzeichnet
+        bv = bf.get("virtual_bet") or {}
+        return {
+            "odds": bf.get("used_odds"),
+            "captured_at": None,
+            "stake": bv.get("stake_eur"),
+            "payout": bv.get("payout_eur"),
+            "profit_loss": bv.get("profit_loss_eur"),
+            "backfilled": True,
+            "odds_type": bf.get("odds_type"),
+        }
     return {
         "odds": b.get("used_odds"),
         "captured_at": b.get("captured_at"),
         "stake": vb.get("stake_eur"),
         "payout": vb.get("payout_eur"),
         "profit_loss": vb.get("profit_loss_eur"),
+        "backfilled": False,
     }
 
 
-def match_public(m, with_detail=True):
+def backfill_index(d):
+    idx = {}
+    for r in d.get("bet_odds_backfill") or []:
+        idx[(r.get("matchday"), r.get("home"), r.get("away"))] = r
+    return idx
+
+
+def match_public(m, with_detail=True, bf=None):
     a = m.get("analysis") or {}
     r = m.get("result") or {}
     out = {
@@ -77,7 +97,7 @@ def match_public(m, with_detail=True):
             "exact_hit": r.get("exact_hit"),
             "tendency_hit": r.get("tendency_hit"),
         },
-        "bet": bet_public(m.get("bet_odds"), m.get("virtual_bet")),
+        "bet": bet_public(m.get("bet_odds"), m.get("virtual_bet"), bf),
     }
     if with_detail:
         out.update({
@@ -98,6 +118,29 @@ def main(src):
     d = json.loads(Path(src).read_text(encoding="utf-8"))
     meta, ss, cur = d["meta"], d["season_summary"], d["current"]
     teams = d.get("teams") or []
+    bfx = backfill_index(d)
+    hist = g(d, "history", "matchdays", default=[])
+
+    # Bilanz je Spieltag inkl. Nachträge (aus history + bet_odds_backfill neu berechnet)
+    pm_incl = {}
+    for md in hist:
+        st = po = 0.0
+        n_bf = 0
+        for m in md.get("matches") or []:
+            bp = bet_public(m.get("bet_odds"), m.get("virtual_bet"),
+                            bfx.get((md.get("matchday"), m.get("home"), m.get("away"))))
+            if bp.get("profit_loss") is None:
+                continue
+            st += bp.get("stake") or 0
+            po += bp.get("payout") or 0
+            n_bf += 1 if bp.get("backfilled") else 0
+        pm_incl[md.get("matchday")] = {"stake_eur": round(st, 2), "payout_eur": round(po, 2),
+                                       "profit_loss_eur": round(po - st, 2), "backfilled_bets": n_bf}
+    per_md = []
+    for row in ss.get("per_matchday") or []:
+        row = dict(row)
+        row["incl_backfill"] = pm_incl.get(row.get("matchday"))
+        per_md.append(row)
 
     aktuell = {
         "project": "ELFTER SINN",
@@ -118,7 +161,7 @@ def main(src):
                 for k in ["stake_eur", "payout_eur", "profit_loss_eur", "roi_pct", "backfilled_bets"]
             },
             "pending_backfill": len(g(ss, "virtual_incl_backfill", "pending_backfill", default=[])),
-            "per_matchday": ss.get("per_matchday") or [],
+            "per_matchday": per_md,
             "by_favorite_probability": g(ss, "breakdown", "by_favorite_probability", default={}),
             "draw_tips": g(ss, "breakdown", "draw_tips"),
             "draw_tips_hit": g(ss, "breakdown", "draw_tips_hit"),
@@ -170,10 +213,12 @@ def main(src):
             {
                 "matchday": md.get("matchday"),
                 "date_range": md.get("date_range"),
-                "matches": [match_public(m, with_detail=False) for m in md.get("matches") or []],
+                "matches": [match_public(m, with_detail=False,
+                                         bf=bfx.get((md.get("matchday"), m.get("home"), m.get("away"))))
+                            for m in md.get("matches") or []],
                 "learnings": md.get("learnings") or [],
             }
-            for md in g(d, "history", "matchdays", default=[])
+            for md in hist
         ][::-1],
     }
 
