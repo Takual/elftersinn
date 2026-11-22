@@ -284,9 +284,10 @@
     pm.forEach(function (d) {
       var ib0 = d.incl_backfill, bf = ib0 && ib0.backfilled_bets > 0;
       var v = (bf ? ib0.profit_loss_eur : d.profit_loss_eur) || 0, px = Math.round(Math.abs(v) / max * 60) + 'px';
-      bars.appendChild(h('div', { class: 'bar' + (bf ? ' bf' : ''), title: 'Spieltag ' + d.matchday + ': ' + eur(v) + ' (Einsatz ' + num(bf ? ib0.stake_eur : d.stake_eur) + ' €' +
+      var open = !d.stake_eur && !bf;
+      bars.appendChild(h('div', { class: 'bar' + (bf ? ' bf' : ''), title: open ? 'Spieltag ' + d.matchday + ': Quoten noch nicht erfasst – Nachtrag folgt' : 'Spieltag ' + d.matchday + ': ' + eur(v) + ' (Einsatz ' + num(bf ? ib0.stake_eur : d.stake_eur) + ' €' +
           (bf ? ', davon ' + ib0.backfilled_bets + ' mit nachgetragener Schlussquote; nur Live-Quoten: ' + eur(d.profit_loss_eur) : '') + ')' },
-        h('span', { class: 'lbl' }, v > 0 ? eur(v) : ''),
+        h('span', { class: 'lbl' }, v > 0 ? eur(v) : (!d.stake_eur && !bf ? 'offen' : '')),
         h('div', { class: 'half up' }, h('span', { style: 'height:' + (v > 0 ? px : '0') })),
         h('div', { class: 'axis' }),
         h('div', { class: 'half down' }, h('span', { style: 'height:' + (v < 0 ? px : '0') })),
