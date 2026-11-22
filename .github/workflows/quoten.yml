@@ -1,0 +1,37 @@
+name: Quoten vor Anpfiff
+
+# Fr/Sa/So stündlich um :02 UTC (deckt Sommer- und Winterzeit ab).
+# Das Skript ruft Quoten nur ab, wenn ein Spiel in 50–100 Min. angepfiffen wird.
+on:
+  schedule:
+    - cron: "2 9-19 * * 5,6,0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quoten
+  cancel-in-progress: false
+
+jobs:
+  quoten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Quoten abrufen
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python3 tools/fetch_odds.py
+      - name: Speichern
+        run: |
+          if [ -n "$(git status --porcelain quoten/)" ]; then
+            git config user.name "ELFTER SINN Bot"
+            git config user.email "info@elftersinn.de"
+            git add quoten/
+            git commit -m "Quoten: $(TZ=Europe/Berlin date '+%d.%m. %H:%M')"
+            for i in 1 2 3; do git pull --rebase -q origin main && git push origin HEAD:main && break; sleep 5; done
+          fi

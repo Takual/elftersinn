@@ -22,3 +22,13 @@ git add data/ && git commit -m "Daten: <Lauf>" && git push
 
 Interne Felder (Update-Protokoll, Arbeitsvermerke) werden beim Export nicht übernommen.
 Fehlende Werte bleiben `null` und erscheinen auf der Seite als „–“.
+
+## Quoten vor Anpfiff (GitHub Action)
+
+`.github/workflows/quoten.yml` startet Fr/Sa/So stündlich `tools/fetch_odds.py`. Das Skript fragt
+kostenlos die anstehenden Spiele bei The Odds API ab und holt nur dann 1X2-Quoten (1 Credit), wenn ein
+Spiel in 50–100 Minuten angepfiffen wird. Ergebnis: `quoten/<Datum>.json` mit allen Buchmacherquoten
+und dem Durchschnitt je Spiel. Der Quoten-Lauf von Claude liest diese Datei.
+
+Einrichtung: API-Schlüssel als Repository-Secret `ODDS_API_KEY` hinterlegen
+(Settings → Secrets and variables → Actions → New repository secret).
