@@ -1,0 +1,34 @@
+name: Schlussquoten (football-data.co.uk)
+
+# Mo–Do 05:17 UTC (vor dem Lagebericht Di/Do um 07:45 Uhr).
+on:
+  schedule:
+    - cron: "17 5 * * 1-4"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: quoten
+  cancel-in-progress: false
+
+jobs:
+  schlussquoten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Schlussquoten holen
+        run: python3 tools/fetch_closing.py 2627
+      - name: Speichern
+        run: |
+          if [ -n "$(git status --porcelain quoten/)" ]; then
+            git config user.name "ELFTER SINN Bot"
+            git config user.email "info@elftersinn.de"
+            git add quoten/
+            git commit -m "Schlussquoten: $(TZ=Europe/Berlin date '+%d.%m. %H:%M')"
+            for i in 1 2 3; do git pull --rebase -q origin main && git push origin HEAD:main && break; sleep 5; done
+          fi
