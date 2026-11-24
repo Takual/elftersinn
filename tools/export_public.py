@@ -64,6 +64,24 @@ def bet_public(b, vb, bf=None):
     }
 
 
+def closing_index(d):
+    idx = {}
+    for r in d.get("bet_odds_closing") or []:
+        idx[(r.get("matchday"), r.get("home"), r.get("away"))] = r
+    return idx
+
+
+def bet_closing(c):
+    """Maßgebliche 5-€-Simulation seit 24.11.2026: Durchschnitts-Schlussquote aller Buchmacher."""
+    if not c:
+        return {"odds": None, "captured_at": None, "stake": None, "payout": None,
+                "profit_loss": None, "backfilled": False, "odds_type": "closing_average"}
+    v = c.get("virtual_bet") or {}
+    return {"odds": c.get("used_odds"), "captured_at": None, "stake": v.get("stake_eur"),
+            "payout": v.get("payout_eur"), "profit_loss": v.get("profit_loss_eur"),
+            "backfilled": False, "odds_type": "closing_average"}
+
+
 def backfill_index(d):
     idx = {}
     for r in d.get("bet_odds_backfill") or []:
@@ -71,7 +89,7 @@ def backfill_index(d):
     return idx
 
 
-def match_public(m, with_detail=True, bf=None):
+def match_public(m, with_detail=True, bf=None, cl=None):
     a = m.get("analysis") or {}
     r = m.get("result") or {}
     out = {
@@ -97,7 +115,7 @@ def match_public(m, with_detail=True, bf=None):
             "exact_hit": r.get("exact_hit"),
             "tendency_hit": r.get("tendency_hit"),
         },
-        "bet": bet_public(m.get("bet_odds"), m.get("virtual_bet"), bf),
+        "bet": bet_closing(cl) if cl is not False else bet_public(m.get("bet_odds"), m.get("virtual_bet"), bf),
     }
     if with_detail:
         out.update({
@@ -119,6 +137,9 @@ def main(src):
     meta, ss, cur = d["meta"], d["season_summary"], d["current"]
     teams = d.get("teams") or []
     bfx = backfill_index(d)
+    clx = closing_index(d)
+    vc = ss.get("virtual_closing") or {}
+    pm_cl = {r.get("matchday"): r for r in vc.get("per_matchday") or []}
     hist = g(d, "history", "matchdays", default=[])
 
     # Bilanz je Spieltag inkl. Nachträge (aus history + bet_odds_backfill neu berechnet)
@@ -140,6 +161,7 @@ def main(src):
     for row in ss.get("per_matchday") or []:
         row = dict(row)
         row["incl_backfill"] = pm_incl.get(row.get("matchday"))
+        row["closing"] = pm_cl.get(row.get("matchday"))
         per_md.append(row)
 
     aktuell = {
@@ -160,6 +182,10 @@ def main(src):
                 k: g(ss, "virtual_incl_backfill", k)
                 for k in ["stake_eur", "payout_eur", "profit_loss_eur", "roi_pct", "backfilled_bets"]
             },
+            "closing": {
+                k: vc.get(k) for k in ["bets", "stake_eur", "payout_eur", "profit_loss_eur", "roi_pct", "avg_used_odds"]
+            } if vc else None,
+            "closing_missing": len(vc.get("missing") or []) if vc else None,
             "pending_backfill": len(g(ss, "virtual_incl_backfill", "pending_backfill", default=[])),
             "per_matchday": per_md,
             "by_favorite_probability": g(ss, "breakdown", "by_favorite_probability", default={}),
@@ -179,7 +205,7 @@ def main(src):
         "current": {
             "matchday": cur.get("matchday"),
             "date_range": cur.get("date_range"),
-            "matches": [match_public(m) for m in cur.get("matches") or []],
+            "matches": [match_public(m, cl=False) for m in cur.get("matches") or []],
             "table": cur.get("table") or [],
             "table_note": cur.get("table_note"),
             "ticker": cur.get("ticker") or [],
@@ -214,7 +240,9 @@ def main(src):
                 "matchday": md.get("matchday"),
                 "date_range": md.get("date_range"),
                 "matches": [match_public(m, with_detail=False,
-                                         bf=bfx.get((md.get("matchday"), m.get("home"), m.get("away"))))
+                                         bf=bfx.get((md.get("matchday"), m.get("home"), m.get("away"))),
+                                         cl=clx.get((md.get("matchday"), m.get("home"), m.get("away")))
+                                         if clx else False)
                             for m in md.get("matches") or []],
                 "learnings": md.get("learnings") or [],
             }

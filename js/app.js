@@ -96,7 +96,7 @@
 
   function renderKpis(a) {
     var s = a.summary, k = s.kicktipp || {};
-    var roiLive = s.roi_pct, roiAll = s.incl_backfill && s.incl_backfill.roi_pct;
+    var roiLive = s.roi_pct, roiAll = s.closing ? s.closing.roi_pct : (s.incl_backfill && s.incl_backfill.roi_pct);
     return h('section', { class: 'kpis', 'aria-label': 'Saisonbilanz' },
       kpi(I.bars, '#22E3A2', pct(s.tendency_accuracy_pct), 'Tendenztreffer (diese Saison)'),
       kpi(I.cup, '#E9C24A', k.rank != null ? 'Platz ' + k.rank : '–',
@@ -278,6 +278,34 @@
   }
 
   function renderBilanz(a) {
+    var s = a.summary, pm = s.per_matchday || [], c = s.closing;
+    if (!c) return renderBilanzAlt(a);
+    var val = function (d) { return d.closing ? d.closing.profit_loss_eur : null; };
+    var max = Math.max.apply(null, pm.map(function (d) { return Math.abs(val(d) || 0); }).concat([1]));
+    var bars = h('div', { class: 'bars', style: 'grid-template-columns:repeat(' + Math.max(pm.length, 1) + ',minmax(0,1fr))' });
+    pm.forEach(function (d) {
+      var v = val(d), open = v == null || !d.closing.bets, px = Math.round(Math.abs(v || 0) / max * 60) + 'px';
+      v = v || 0;
+      bars.appendChild(h('div', { class: 'bar', title: open ? 'Spieltag ' + d.matchday + ': Schlussquoten noch nicht verfügbar' : 'Spieltag ' + d.matchday + ': ' + eur(v) + ' (Einsatz ' + num(d.closing.stake_eur) + ' €)' },
+        h('span', { class: 'lbl' }, v > 0 ? eur(v) : (open ? 'offen' : '')),
+        h('div', { class: 'half up' }, h('span', { style: 'height:' + (v > 0 ? px : '0') })),
+        h('div', { class: 'axis' }),
+        h('div', { class: 'half down' }, h('span', { style: 'height:' + (v < 0 ? px : '0') })),
+        h('span', { class: 'lbl' }, v < 0 ? eur(v) : ''),
+        h('span', { class: 'md' }, 'ST ' + d.matchday)));
+    });
+    return h('section', { class: 'panel bilanz', id: 'bilanz' },
+      h('div', { class: 'bilanz-text' },
+        h('h2', null, '5-€-Simulation pro Spieltag'),
+        h('p', null, '5 € auf jede getippte Tendenz, gerechnet mit der Schlussquote kurz vor Anpfiff (Durchschnitt aller Buchmacher).'),
+        h('p', null, 'Bilanz: ', h('b', { class: sign(c.profit_loss_eur) }, eur(c.profit_loss_eur)), ' bei ' + num(c.stake_eur) + ' € Einsatz (ROI ' + pct(c.roi_pct) + ').'),
+        h('p', { class: 'note' }, 'Quelle: football-data.co.uk. Die Tipps stehen vor Anpfiff fest; die Quote wird erst nach dem Spieltag eingetragen. Reine Simulation vor Wettsteuer, keine Wettempfehlung.'),
+        h('p', { class: 'note' }, 'Exakte Treffer: ' + num(s.exact_hits) + ' · Remis-Tipps: ' + num(s.draw_tips_hit) + ' von ' + num(s.draw_tips) + ' richtig · Risikotipps: ' +
+          num((s.risk_tips || {}).tendency_hits) + ' von ' + num((s.risk_tips || {}).tips))),
+      bars);
+  }
+
+  function renderBilanzAlt(a) {
     var s = a.summary, pm = s.per_matchday || [];
     var max = Math.max.apply(null, pm.map(function (d) { var ib0 = d.incl_backfill; return Math.abs(((ib0 && ib0.backfilled_bets > 0) ? ib0.profit_loss_eur : d.profit_loss_eur) || 0); }).concat([1]));
     var bars = h('div', { class: 'bars', style: 'grid-template-columns:repeat(' + Math.max(pm.length, 1) + ',minmax(0,1fr))' });
@@ -363,7 +391,7 @@
           h('td', { class: 'c' }, h('span', { class: 'tip' }, (m.tip && m.tip.score) || '–')),
           h('td', { class: 'c' }, h('span', { class: 'res' }, r.score || '–')),
           h('td', { class: 'r' }, r.score ? h('span', { class: 'hit ' + cls }, r.exact_hit ? 'exakt' : r.tendency_hit ? 'Tendenz' : 'daneben') : null),
-          h('td', { class: 'r ' + sign(m.bet && m.bet.profit_loss), title: m.bet && m.bet.backfilled ? 'Nachgetragene Schlussquote ' + num(m.bet.odds, 2) + ' (keine Live-Quote)' : null },
+          h('td', { class: 'r ' + sign(m.bet && m.bet.profit_loss), title: m.bet && m.bet.odds ? (m.bet.odds_type === 'closing_average' ? 'Schlussquote ' : m.bet.backfilled ? 'Nachgetragene Schlussquote ' : 'Wettquote ') + num(m.bet.odds, 2) : null },
             m.bet && m.bet.profit_loss != null ? eur(m.bet.profit_loss) + (m.bet.backfilled ? '*' : '') : '–')));
         if (m.post_analysis && m.post_analysis.error_class) {
           tb.appendChild(h('tr', { class: 'detail' }, h('td', { colspan: '7' },
